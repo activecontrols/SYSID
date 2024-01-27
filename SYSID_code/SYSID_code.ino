@@ -9,11 +9,14 @@ int constantDelay = 20;
 
 Servo vane1;
 Servo vane2;
+Servo betaServo;
+Servo gammaServo;
 Servo EDF;
-int vane1Pin = 33;
-int vane2Pin = 36;
+int vane1Pin = 28;
+int vane2Pin = 33;
+int betaPin = 36;
+int gammaPin = 29;
 int EDFPin = 8;
-int TLMPin = 22;
 
 float vane_min = -12;
 float vane_max = 12;
@@ -63,9 +66,13 @@ void setup() {
   Serial1.begin(115200);
   vane1.attach(vane1Pin);
   vane2.attach(vane2Pin);
+  betaServo.attach(betaPin);
+  gammaServo.attach(gammaPin);
   EDF.attach(EDFPin);
   vane1.write(alpha1_0);
   vane2.write(alpha2_0);
+  betaServo.write(100);
+  gammaServo.write(100);
 
   newestForce = 0;
   newestTorque = 0;
