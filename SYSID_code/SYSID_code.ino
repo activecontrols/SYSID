@@ -1,6 +1,7 @@
 #include <Servo.h>
 #include <Math.h>
 #include <Arduino.h>
+#include <FreqMeasure.h>
 
 // SYS-ID CODE
 
@@ -50,10 +51,14 @@ float currentTorqueAvg;
 float lastTorqueAvg;
 float torqueConvergenceThreshold = 0.01;
 
+double sum = 0;
+int count = 0;
+
 void setup() {
   // put your setup code here, to run once:
   while (!Serial.available()) {
   }
+  FreqMeasure.begin();
   Serial.begin(9600);
   Serial1.begin(115200);
   vane1.attach(vane1Pin);
@@ -74,7 +79,7 @@ void setup() {
 
   lastSegmentTime = millis() / 1000.0;
 
-  Serial.println("Segment:\tTime (s):\tThrottle:\tVane Angle (deg):\tThrust Force (N):\tTorque (Nm)");
+  Serial.println("Segment\tTime (s)\tThrottle\tVane Angle (deg)\tThrust Force (N)\tTorque (Nm)\tRPM");
 }
 
 void loop() {
@@ -83,7 +88,7 @@ void loop() {
     String uno_tlm = Serial1.readStringUntil('\n');
     int comma_index = uno_tlm.indexOf(',');
     newestForce = uno_tlm.substring(0, comma_index).toFloat();
-    newestTorque = uno_tlm.substring(comma_index+1, uno_tlm.length()).toFloat();
+    newestTorque = uno_tlm.substring(comma_index + 1, uno_tlm.length()).toFloat();
 
     if (millis() > 7000) {
 
@@ -175,35 +180,35 @@ void loop() {
           currentForce = newestForce;
           currentTorque = newestTorque;
 
-          if ((millis() / 1000.0) > lastSegmentTime + 10) {
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
             segment++;
             lastSegmentTime = millis() / 1000.0;
           }
 
           break;
         case 8:
-          sineInput(millis() / 1000.0, 2, 't');
+          sineInput(millis() / 1000.0, 0.5, 't');
           unitStep(lastSegmentTime, 0, '1');
           unitStep(lastSegmentTime, 0, '2');
 
           currentForce = newestForce;
           currentTorque = newestTorque;
 
-          if ((millis() / 1000.0) > lastSegmentTime + 10) {
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
             segment++;
             lastSegmentTime = millis() / 1000.0;
           }
 
           break;
         case 9:
-          sineInput(millis() / 1000.0, 5, 't');
+          sineInput(millis() / 1000.0, 0.1, 't');
           unitStep(lastSegmentTime, 0, '1');
           unitStep(lastSegmentTime, 0, '2');
 
           currentForce = newestForce;
           currentTorque = newestTorque;
 
-          if ((millis() / 1000.0) > lastSegmentTime + 10) {
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
             segment++;
             lastSegmentTime = millis() / 1000.0;
           }
@@ -217,7 +222,35 @@ void loop() {
           currentForce = newestForce;
           currentTorque = newestTorque;
 
-          if ((millis() / 1000.0) > lastSegmentTime + 10) {
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
+            segment++;
+            lastSegmentTime = millis() / 1000.0;
+          }
+
+          break;
+        case 11:
+          unitStep(lastSegmentTime, 50, 't');
+          sineInput(millis() / 1000.0, 0.5, '1');
+          sineInput(millis() / 1000.0, 0.5, '2');
+
+          currentForce = newestForce;
+          currentTorque = newestTorque;
+
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
+            segment++;
+            lastSegmentTime = millis() / 1000.0;
+          }
+
+          break;
+        case 12:
+          unitStep(lastSegmentTime, 50, 't');
+          sineInput(millis() / 1000.0, 0.1, '1');
+          sineInput(millis() / 1000.0, 0.1, '2');
+
+          currentForce = newestForce;
+          currentTorque = newestTorque;
+
+          if ((millis() / 1000.0) > lastSegmentTime + 15) {
             segment++;
             lastSegmentTime = millis() / 1000.0;
           }
@@ -231,7 +264,6 @@ void loop() {
           currentForce = newestForce;
           currentTorque = newestTorque;
 
-          // Serial.println("Getting to the end");
           break;
       }
 
@@ -246,6 +278,24 @@ void loop() {
       Serial.print(currentForce);
       Serial.print("\t");
       Serial.print(currentTorque);
+      Serial.print("\t");
+
+      if (FreqMeasure.available()) {
+        // average several reading together
+        sum = sum + FreqMeasure.read();
+        count = count + 1;
+        if (count > 30) {
+          float frequency = 60 / 2 * FreqMeasure.countToFrequency(sum / count);
+          Serial.print(frequency);
+          sum = 0;
+          count = 0;
+        } else {
+          Serial.print("NULL");
+        }
+      } else {
+        Serial.print("NULL");
+      }
+
       Serial.println();
       Serial.flush();
     } else {
