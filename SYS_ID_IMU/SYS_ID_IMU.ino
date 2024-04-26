@@ -13,16 +13,16 @@ Servo vane2;
 Servo betaServo;
 Servo gammaServo;
 Servo EDF;
-int vane1Pin = 28;
-int vane2Pin = 33;
-int betaPin = 36;
+int vane1Pin = 33;
+int vane2Pin = 36;
+int betaPin = 39;
 int gammaPin = 29;
 int EDFPin = 8;
 
 float vane_min = -15;
 float vane_max = 15;
 float alpha1_0 = 140;  // Initial Vane setting in degrees
-float alpha2_0 = 145;
+float alpha2_0 = 140;
 
 const int low_endpoint = 1020;   // 0 throttle = 1000
 const int high_endpoint = 1980;  // 100 throttle = 2000
@@ -31,9 +31,6 @@ float throttle_max = 100;
 
 int delta = high_endpoint - low_endpoint;
 int arm_tries = 100;
-
-int segment = 0;
-float lastSegmentTime;
 
 float throttle_command;
 float vane_command;
@@ -48,6 +45,9 @@ float torqueConvergenceThreshold = 0.03;
 
 double sum = 0;
 int count = 0;
+
+float lastSegmentTime;
+int segmentIdx = 0;
 
 void writeConstant(float in, char identifier) {
   if (identifier == 't') {
@@ -81,15 +81,15 @@ void writeLinear(float t, float start, float end, char identifier) {
 
 void setup() {
   FreqMeasure.begin();
-  Serial.begin(9600);
+  Serial1.begin(57600);
 
-  while (!Serial.available()) {}
+  while (!Serial1.available()) {}
 
   int errorCode = initializeIMU();
   while(errorCode != 0) {
-    Serial.print("Failed to initialize IMU, error code: ");
-    Serial.print(errorCode);
-    Serial.println(". Retrying...");
+    Serial1.print("Failed to initialize IMU, error code: ");
+    Serial1.print(errorCode);
+    Serial1.println(". Retrying...");
     errorCode = initializeIMU();
   }
 
@@ -114,12 +114,11 @@ void setup() {
   delay(5000);
 
   lastSegmentTime = millis() / 1000.0;
-  Serial.println("Segment\tTime (s)\tThrottle\tVane Angle (deg)\tRPM");
+  Serial1.println("segment,time,throttle,vane,rpm,roll,pitch,yaw,accelx,accely,accelz,gx,gy,gz,magx,magy,magz");
 }
 
 void loop() {
   delay(constantDelay);
-
   updateIMU(); 
 
   if (millis() <= 7000) { // do nothing for 7 seconds
@@ -129,60 +128,78 @@ void loop() {
     return;
   }
 
-  switch (segment) {
-    case 0:
-      writeConstant(15, 'a');
-//      writeLinear((millis() / 1000.0 - lastSegmentTime) / 10, 0, 100, 't');
-      if ((millis() / 1000.0) > lastSegmentTime + 10) {
-        segment++;
-        lastSegmentTime = millis() / 1000.0;
-      }
-      break;
-    case 1:
-      writeConstant(-15, 'a');
-//      writeLinear((millis() / 1000.0 - lastSegmentTime) / 10, 100, 0, 't');
-      if ((millis() / 1000.0) > lastSegmentTime + 10) {
-        segment++;
-        lastSegmentTime = millis() / 1000.0;
-      }
-      break;
-    default:
-      writeConstant(0, 't');
-      writeConstant(0, 'a');
-      break;
-  }
+  // actual control input
+  
+  control();
 
-  Serial.print(segment);
-  Serial.print(",\t");
-  Serial.print(millis() / 1000.0);
-  Serial.print(",\t");
-  Serial.print(throttle_command);
-  Serial.print(",\t");
-  Serial.print(vane_command);
-  Serial.print(",\t");
+  // logging:
+
+  Serial1.print(segmentIdx);
+  Serial1.print(",");
+  Serial1.print(millis() / 1000.0);
+  Serial1.print(",");
+  Serial1.print(throttle_command);
+  Serial1.print(",");
+  Serial1.print(vane_command);
+  Serial1.print(",");
 
   if (FreqMeasure.available()) {
-    // average several reading together
+    // average several readings together
     sum = sum + FreqMeasure.read();
     if (++count > 10) {
       float frequency = 60 / 2 * FreqMeasure.countToFrequency(sum / count);
-      Serial.print(frequency);
+      Serial1.print(frequency); Serial1.print(",");
       sum = 0;
       count = 0;
     } else {
-      Serial.print("NULL");
+      Serial1.print("nan,");
     }
   } else {
-    Serial.print("NULL");
+    Serial1.print("nan,");
   }
 
-  Serial.print(roll);
-  Serial.print(",");
-  Serial.print(pitch);
-  Serial.print(",");
-  Serial.print(yaw);
-  Serial.print(",");
+  // filtered values
+  Serial1.print(roll);  Serial1.print(",");
+  Serial1.print(pitch); Serial1.print(",");
+  Serial1.print(yaw);   Serial1.print(",");
 
-  Serial.println();
-  Serial.flush();
+  // raw values
+  Serial1.print(accel.acceleration.x, 4); Serial1.print(",");
+  Serial1.print(accel.acceleration.y, 4); Serial1.print(",");
+  Serial1.print(accel.acceleration.z, 4); Serial1.print(",");
+  Serial1.print(gx, 4); Serial1.print(",");
+  Serial1.print(gy, 4); Serial1.print(",");
+  Serial1.print(gz, 4); Serial1.print(",");
+  Serial1.print(mag.magnetic.x, 4); Serial1.print(",");
+  Serial1.print(mag.magnetic.y, 4); Serial1.print(",");
+  Serial1.print(mag.magnetic.z, 4);
+
+  Serial1.println();
+  Serial1.flush();
+}
+
+int numSegments = 4;
+float throttleVals[] = {20, 40, 60, 80};
+float vaneVals[]     = {-15, -15, -15, -15};
+float secondsPerSegment = 2;
+float delayBetween = 2;
+
+void control() {
+
+  if (segmentIdx >= numSegments) {
+    writeConstant(0, 't');
+    writeConstant(0, 'a');
+    delay(100 * 1000); // dont wanna spam output once test is done.
+  }
+
+  float secondsSince = millis() / 1000.0 - lastSegmentTime;
+  if (secondsSince > secondsPerSegment) {
+    delay(delayBetween * 1000.0);
+    lastSegmentTime = millis() / 1000.0;
+    segmentIdx++;
+    return;
+  }
+
+  writeConstant(throttleVals[segmentIdx], 't');
+  writeConstant(vaneVals[segmentIdx], 'a');
 }

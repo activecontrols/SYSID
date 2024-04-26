@@ -20,6 +20,7 @@ Eigen::VectorXd magnetometerVector(3);
 float roll, pitch, yaw = 0;
 float gx, gy, gz = 0; //degrees per second on gyro
 float qw, qx, qy, qz = 0; //quaternarion
+sensors_event_t accel, gyro, mag;
 
 /*
  * You must free the pointer and set it to NULL after using the pointer!
@@ -152,7 +153,7 @@ int initializeIMU() {
 int updateIMU() {
   
   // Read the motion sensors
-  sensors_event_t accel, gyro, mag;
+  // sensors_event_t accel, gyro, mag;
   accelerometer->getEvent(&accel);
   gyroscope->getEvent(&gyro);
   magnetometer->getEvent(&mag);
@@ -215,41 +216,41 @@ int updateIMU() {
   gyroscopeVector << gx, gy, gz;
   magnetometerVector << mag.magnetic.x, mag.magnetic.y, mag.magnetic.z;
 
-  Serial.println();
-  Serial.print("Orientation: ");
-  Serial.print(roll);
-  Serial.print(", ");
-  Serial.print(pitch);
-  Serial.print(", ");
-  Serial.println(yaw);
+  // Serial.println();
+  // Serial.print("Orientation: ");
+  // Serial.print(roll);
+  // Serial.print(", ");
+  // Serial.print(pitch);
+  // Serial.print(", ");
+  // Serial.println(yaw);
 
 #if defined(ASTRA_FULL_DEBUG) or defined(ASTRA_IMU_DEBUG)
 
   //Serial.print("I2C took "); Serial.print(millis()-timestamp); Serial.println(" ms");;
   //Serial.print("Update took "); Serial.print(millis()-timestamp); Serial.println(" ms");
-  Serial.print("Raw: ");
-  Serial.print(accel.acceleration.x, 4); Serial.print(", ");
-  Serial.print(accel.acceleration.y, 4); Serial.print(", ");
-  Serial.print(accel.acceleration.z, 4); Serial.print(", ");
-  Serial.println();
-  Serial.print(gx, 4); Serial.print(", ");
-  Serial.print(gy, 4); Serial.print(", ");
-  Serial.print(gz, 4); Serial.print(", ");
-  Serial.println();
-  Serial.print(mag.magnetic.x, 4); Serial.print(", ");
-  Serial.print(mag.magnetic.y, 4); Serial.print(", ");
-  Serial1.print(mag.magnetic.z, 4); Serial1.println("\n");
+  // Serial.print("Raw: ");
+  // Serial.print(accel.acceleration.x, 4); Serial.print(", ");
+  // Serial.print(accel.acceleration.y, 4); Serial.print(", ");
+  // Serial.print(accel.acceleration.z, 4); Serial.print(", ");
+  // Serial.println();
+  // Serial.print(gx, 4); Serial.print(", ");
+  // Serial.print(gy, 4); Serial.print(", ");
+  // Serial.print(gz, 4); Serial.print(", ");
+  // Serial.println();
+  // Serial.print(mag.magnetic.x, 4); Serial.print(", ");
+  // Serial.print(mag.magnetic.y, 4); Serial.print(", ");
+  // Serial1.print(mag.magnetic.z, 4); Serial1.println("\n");
 
   
 
-  Serial.print("Quaternion: ");
-  Serial.print(qw, 4);
-  Serial.print(", ");
-  Serial.print(qx, 4);
-  Serial.print(", ");
-  Serial.print(qy, 4);
-  Serial.print(", ");
-  Serial.println(qz, 4);  
+  // Serial.print("Quaternion: ");
+  // Serial.print(qw, 4);
+  // Serial.print(", ");
+  // Serial.print(qx, 4);
+  // Serial.print(", ");
+  // Serial.print(qy, 4);
+  // Serial.print(", ");
+  // Serial.println(qz, 4);  
   //Serial.print("Took "); Serial.print(millis()-timestamp); Serial.println(" ms");
   //delay(50);
 #endif

@@ -59,6 +59,8 @@ extern Eigen::VectorXd magnetometerVector;
 extern float gx, gy, gz; //degrees per second on gyro
 extern float qw, qx, qy, qz; //quaternarion
 
+extern sensors_event_t accel, gyro, mag;
+
 // slower == better quality output
 static Adafruit_NXPSensorFusion filter; // slowest
 
