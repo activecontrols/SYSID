@@ -1,4 +1,6 @@
+
 #include "Error.h"
+
 #include "IMU.h"
 #include "LSM6DS_LIS3MDL.h"
 
@@ -9,6 +11,7 @@ Author: Vincent Palmerio
 
 */
 
+//#define ASTRA_IMU_DEBUG
 
 Eigen::VectorXd linearAccelVector(3);
 float linearAccelX, linearAccelY, linearAccelZ = 0;
@@ -32,28 +35,56 @@ float* getValues() {
 
 //loads a predetermined calibration into the EEPROM
 int loadPresetCalibration() {
+
+#if IMU_NUMBER == 1
   //Magnetic Hard Offset
-  cal.mag_hardiron[0] = -3.35;
-  cal.mag_hardiron[1] = -0.74;
-  cal.mag_hardiron[2] = -40.79;
+  cal.mag_hardiron[0] = 18.00;
+  cal.mag_hardiron[1] = 37.79;
+  cal.mag_hardiron[2] = -84.00;
 
   //Magnetic Soft Offset
   // in uTesla
-  cal.mag_softiron[0] = 0.96;
-  cal.mag_softiron[1] = 0.02;
+  cal.mag_softiron[0] = 0.98;
+  cal.mag_softiron[1] = 0.05;
   cal.mag_softiron[2] = 0.01;  
-  cal.mag_softiron[3] = 0.02;
-  cal.mag_softiron[4] = 0.96;
+  cal.mag_softiron[3] = 0.05;
+  cal.mag_softiron[4] = 1.06;
   cal.mag_softiron[5] = 0.0;  
   cal.mag_softiron[6] = 0.01;
   cal.mag_softiron[7] = 0.0;
-  cal.mag_softiron[8] = 1.08;  
+  cal.mag_softiron[8] = 0.96;  
 
   //Gyro zero rate offset
   // in Radians/s
   cal.gyro_zerorate[0] = 0.05;
   cal.gyro_zerorate[1] = -0.01;
   cal.gyro_zerorate[2] = -0.01;
+#endif
+
+#if IMU_NUMBER == 2 /* NOT CALIBRATED YET */
+  //Magnetic Hard Offset
+  cal.mag_hardiron[0] = 0.0;
+  cal.mag_hardiron[1] = 0.0;
+  cal.mag_hardiron[2] = 0.0;
+
+  //Magnetic Soft Offset
+  // in uTesla
+  cal.mag_softiron[0] = 0.0;
+  cal.mag_softiron[1] = 0.0;
+  cal.mag_softiron[2] = 0.0;  
+  cal.mag_softiron[3] = 0.0;
+  cal.mag_softiron[4] = 0.0;
+  cal.mag_softiron[5] = 0.0;  
+  cal.mag_softiron[6] = 0.0;
+  cal.mag_softiron[7] = 0.0;
+  cal.mag_softiron[8] = 0.0;  
+
+  //Gyro zero rate offset
+  // in Radians/s
+  cal.gyro_zerorate[0] = 0.0;
+  cal.gyro_zerorate[1] = 0.0;
+  cal.gyro_zerorate[2] = 0.0;
+#endif
 
   if (cal.saveCalibration()) {
     return FAILED_LOAD_CALIBRATION;
@@ -80,7 +111,7 @@ int initializeIMU() {
 #endif
     return FAILED_CALIBRATION_HELPER_INIT;
   }
-
+  loadPresetCalibration();
   if (!cal.loadCalibration()) {
     //No calibration loaded/found
     static bool triedLoadPresetCalibration = false;
@@ -138,15 +169,41 @@ int updateIMU() {
   gz = gyro.gyro.z; //* SENSORS_RADS_TO_DPS; //omega z
 
   // Update the SensorFusion filter
-  filter.update(gx, gy, gz, 
-                accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
-                mag.magnetic.x, mag.magnetic.y, mag.magnetic.z);
-
+  // filter.update(gx, gy, gz, 
+  //               accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
+  //               mag.magnetic.x, mag.magnetic.y, mag.magnetic.z);
+  // Serial.println("RAW:  ");
+  // Serial.print(lsm6ds.rawAccX);
+  // Serial.print(",");
+  // Serial.print(lsm6ds.rawAccY);
+  // Serial.print(",");
+  // Serial.print(lsm6ds.rawAccZ);
+  // Serial.print(",");
+  // Serial.print(lsm6ds.rawGyroX);
+  // Serial.print(",");
+  // Serial.print(lsm6ds.rawGyroY);
+  // Serial.print(",");
+  // Serial.print(lsm6ds.rawGyroZ);
+  // Serial.print(",");
+  // Serial.print(lis3mdl.x);
+  // Serial.print(",");
+  // Serial.print(lis3mdl.y);
+  // Serial.print(",");
+  // Serial.print(lis3mdl.z);
+  // Serial.print(",");
+  filter.update(lsm6ds.rawGyroX, lsm6ds.rawGyroY, lsm6ds.rawGyroZ,
+                lsm6ds.rawAccX, lsm6ds.rawAccY, lsm6ds.rawAccZ,
+                lis3mdl.x, lis3mdl.y, lis3mdl.z
+  );
+  
   // print the heading, pitch and roll
   roll = filter.getRoll();
   pitch = filter.getPitch();
   yaw = filter.getYaw();
 
+  // gx = lsm6ds.rawGyroX;
+  // gy = lsm6ds.rawGyroY;
+  // gz = lsm6ds.rawGyroZ;
 
   //float qw, qx, qy, qz;
   filter.getQuaternion(&qw, &qx, &qy, &qz);
@@ -158,28 +215,32 @@ int updateIMU() {
   gyroscopeVector << gx, gy, gz;
   magnetometerVector << mag.magnetic.x, mag.magnetic.y, mag.magnetic.z;
 
+  Serial.println();
+  Serial.print("Orientation: ");
+  Serial.print(roll);
+  Serial.print(", ");
+  Serial.print(pitch);
+  Serial.print(", ");
+  Serial.println(yaw);
+
 #if defined(ASTRA_FULL_DEBUG) or defined(ASTRA_IMU_DEBUG)
 
-  //Serial.print("I2C took "); Serial.print(millis()-timestamp); Serial.println(" ms");
-
+  //Serial.print("I2C took "); Serial.print(millis()-timestamp); Serial.println(" ms");;
   //Serial.print("Update took "); Serial.print(millis()-timestamp); Serial.println(" ms");
   Serial.print("Raw: ");
   Serial.print(accel.acceleration.x, 4); Serial.print(", ");
   Serial.print(accel.acceleration.y, 4); Serial.print(", ");
   Serial.print(accel.acceleration.z, 4); Serial.print(", ");
+  Serial.println();
   Serial.print(gx, 4); Serial.print(", ");
   Serial.print(gy, 4); Serial.print(", ");
   Serial.print(gz, 4); Serial.print(", ");
+  Serial.println();
   Serial.print(mag.magnetic.x, 4); Serial.print(", ");
   Serial.print(mag.magnetic.y, 4); Serial.print(", ");
-  Serial.print(mag.magnetic.z, 4); Serial.println("");
+  Serial1.print(mag.magnetic.z, 4); Serial1.println("\n");
 
-  Serial.print("Orientation: ");
-  Serial.print(heading);
-  Serial.print(", ");
-  Serial.print(pitch);
-  Serial.print(", ");
-  Serial.println(roll);
+  
 
   Serial.print("Quaternion: ");
   Serial.print(qw, 4);
@@ -190,7 +251,7 @@ int updateIMU() {
   Serial.print(", ");
   Serial.println(qz, 4);  
   //Serial.print("Took "); Serial.print(millis()-timestamp); Serial.println(" ms");
-
+  //delay(50);
 #endif
 
 
