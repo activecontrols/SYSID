@@ -151,12 +151,16 @@ int initializeIMU() {
 
 //sets varaibles declared in IMU.h based on latest data IMU
 int updateIMU() {
+
+  Serial.println("CAN YOU SEE ME");
   
   // Read the motion sensors
   // sensors_event_t accel, gyro, mag;
   accelerometer->getEvent(&accel);
   gyroscope->getEvent(&gyro);
   magnetometer->getEvent(&mag);
+
+  Serial.println("CAN YOU SEE ME 2");
 
   cal.calibrate(mag);
   cal.calibrate(accel);

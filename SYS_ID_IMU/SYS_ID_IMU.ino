@@ -1,10 +1,13 @@
 #include "IMU.h"
+#include "SD_stuff.h"
 
 #include <Servo.h>
 
 //#include <math.h>
 #include <Arduino.h>
 #include <FreqMeasure.h>
+
+#define serial Serial
 
 int constantDelay = 20;
 
@@ -43,9 +46,6 @@ float torquenm1 = 1e6;
 float torquenm2;
 float torqueConvergenceThreshold = 0.03;
 
-double sum = 0;
-int count = 0;
-
 float lastSegmentTime;
 int segmentIdx = 0;
 
@@ -81,17 +81,25 @@ void writeLinear(float t, float start, float end, char identifier) {
 
 void setup() {
   FreqMeasure.begin();
-  Serial1.begin(57600);
+  // serial.begin(57600);
+  serial.begin(9600);
 
-  while (!Serial1.available()) {}
+  // while (!serial.available()) {}
 
   int errorCode = initializeIMU();
   while(errorCode != 0) {
-    Serial1.print("Failed to initialize IMU, error code: ");
-    Serial1.print(errorCode);
-    Serial1.println(". Retrying...");
+    serial.print("Failed to initialize IMU, error code: ");
+    serial.print(errorCode);
+    serial.println(". Retrying...");
     errorCode = initializeIMU();
+    delay(100);
   }
+
+  serial.println("hello there");
+
+  initializeSD();
+
+  logger::open("spongebob.bin");
 
   vane1.attach(vane1Pin);
   vane2.attach(vane2Pin);
@@ -114,12 +122,21 @@ void setup() {
   delay(5000);
 
   lastSegmentTime = millis() / 1000.0;
-  Serial1.println("segment,time,throttle,vane,rpm,roll,pitch,yaw,accelx,accely,accelz,gx,gy,gz,magx,magy,magz");
+
+  serial.println("starting loop soon!!!");
 }
 
 void loop() {
+  serial.println("in loop rn");
   delay(constantDelay);
+  vane_command = 10.0;
+  log();
+  serial.println("before imu update");
+  logger::close();
   updateIMU(); 
+  serial.println("after imu update");
+
+  serial.println("YO WHAT THE HELL");
 
   if (millis() <= 7000) { // do nothing for 7 seconds
     writeConstant(0, 't');
@@ -129,53 +146,8 @@ void loop() {
   }
 
   // actual control input
-  
   control();
-
-  // logging:
-
-  Serial1.print(segmentIdx);
-  Serial1.print(",");
-  Serial1.print(millis() / 1000.0);
-  Serial1.print(",");
-  Serial1.print(throttle_command);
-  Serial1.print(",");
-  Serial1.print(vane_command);
-  Serial1.print(",");
-
-  if (FreqMeasure.available()) {
-    // average several readings together
-    sum = sum + FreqMeasure.read();
-    if (++count > 10) {
-      float frequency = 60 / 2 * FreqMeasure.countToFrequency(sum / count);
-      Serial1.print(frequency); Serial1.print(",");
-      sum = 0;
-      count = 0;
-    } else {
-      Serial1.print("nan,");
-    }
-  } else {
-    Serial1.print("nan,");
-  }
-
-  // filtered values
-  Serial1.print(roll);  Serial1.print(",");
-  Serial1.print(pitch); Serial1.print(",");
-  Serial1.print(yaw);   Serial1.print(",");
-
-  // raw values
-  Serial1.print(accel.acceleration.x, 4); Serial1.print(",");
-  Serial1.print(accel.acceleration.y, 4); Serial1.print(",");
-  Serial1.print(accel.acceleration.z, 4); Serial1.print(",");
-  Serial1.print(gx, 4); Serial1.print(",");
-  Serial1.print(gy, 4); Serial1.print(",");
-  Serial1.print(gz, 4); Serial1.print(",");
-  Serial1.print(mag.magnetic.x, 4); Serial1.print(",");
-  Serial1.print(mag.magnetic.y, 4); Serial1.print(",");
-  Serial1.print(mag.magnetic.z, 4);
-
-  Serial1.println();
-  Serial1.flush();
+  log();
 }
 
 int numSegments = 4;
@@ -185,7 +157,6 @@ float secondsPerSegment = 2;
 float delayBetween = 2;
 
 void control() {
-
   if (segmentIdx >= numSegments) {
     writeConstant(0, 't');
     writeConstant(0, 'a');
@@ -202,4 +173,47 @@ void control() {
 
   writeConstant(throttleVals[segmentIdx], 't');
   writeConstant(vaneVals[segmentIdx], 'a');
+}
+
+double sum = 0;
+int count = 0;
+
+void log() {
+  serial.print(throttle_command);
+  serial.print(",");
+  serial.print(vane_command);
+
+  float frequency = 0.0/0.0; // hacky way to get a nan
+  if (FreqMeasure.available()) {
+    // average several readings together
+    sum = sum + FreqMeasure.read();
+    if (++count > 10) {
+      frequency = 60 / 2 * FreqMeasure.countToFrequency(sum / count);
+      sum = 0;
+      count = 0;
+    }
+  }
+
+  logger::Data data = {
+    segmentIdx,
+    millis() / 1000.0,
+    throttle_command,
+    vane_command,
+    frequency,
+    roll,
+    pitch,
+    yaw,
+    accel.acceleration.x,
+    accel.acceleration.y,
+    accel.acceleration.z,
+    gx,
+    gy,
+    gz,
+    mag.magnetic.x,
+    mag.magnetic.y,
+    mag.magnetic.z
+  };
+
+  logger::write(&data);
+  // serial.flush();
 }
