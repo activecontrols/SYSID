@@ -2,6 +2,7 @@
 #include "SD_stuff.h"
 
 #include <Servo.h>
+#include <elapsedMillis.h>
 
 //#include <math.h>
 #include <Arduino.h>
@@ -9,7 +10,7 @@
 
 #define serial Serial
 
-int constantDelay = 20;
+int constantDelay = 1;
 
 Servo vane1;
 Servo vane2;
@@ -46,13 +47,13 @@ float torquenm1 = 1e6;
 float torquenm2;
 float torqueConvergenceThreshold = 0.03;
 
-float lastSegmentTime;
+// float lastSegmentTime;
 int segmentIdx = 0;
 
 void writeConstant(float in, char identifier) {
   if (identifier == 't') {
     int pwm_out = (int) (
-            in / (throttle_max - throttle_min) // normalize to 0-1
+            (in - throttle_min) / (throttle_max - throttle_min) // normalize to 0-1
               * (float)(high_endpoint - low_endpoint) + low_endpoint // scale to endpoints
             );
     throttle_command = in;
@@ -79,6 +80,8 @@ void writeLinear(float t, float start, float end, char identifier) {
   }
 }
 
+String input;
+
 void setup() {
   FreqMeasure.begin();
   // serial.begin(57600);
@@ -94,8 +97,6 @@ void setup() {
     errorCode = initializeIMU();
     delay(100);
   }
-
-  serial.println("hello there");
 
   initializeSD();
 
@@ -121,58 +122,87 @@ void setup() {
   EDF.writeMicroseconds(1020);
   delay(5000);
 
-  lastSegmentTime = millis() / 1000.0;
+  writeConstant(0, 't');
+  writeConstant(0, 'a');
 
-  serial.println("starting loop soon!!!");
+  input.reserve(80);
+
+  serial.println("I am alive");
+
+  // lastSegmentTime = millis() / 1000.0;
 }
+
+
+void delayKeepIMU(int ms) {
+  static elapsedMillis t;
+  while (t < ms) {
+    updateIMU();
+    delay(1);
+  }
+}
+
+#define LOG_INTERVAL 100 // todo: allow changing this value depending on whether we're actually in a segment or not.
 
 void loop() {
-  serial.println("in loop rn");
-  delay(constantDelay);
-  vane_command = 10.0;
-  log();
-  serial.println("before imu update");
-  logger::close();
-  updateIMU(); 
-  serial.println("after imu update");
+  static elapsedMillis tsincelog;
+  static elapsedMillis tsincecmd;
 
-  serial.println("YO WHAT THE HELL");
+  static int thrust = 0;
+  static int vane = 0;
+  static int numseconds = 0;
+  static int linear = 0; // 0 for constant, 1 for linear
+  static int thrust2 = 0;
+  static int vane2 = 0;
 
-  if (millis() <= 7000) { // do nothing for 7 seconds
-    writeConstant(0, 't');
-    writeConstant(0, 'a');
-    lastSegmentTime = millis() / 1000.0;
-    return;
+  // serial.println(micros());
+
+  if (tsincelog >= LOG_INTERVAL) {
+    // vane_command = 10.0; // just for now
+    log();
+    // logger::close(); // just for now
+    // while (true) {} // just for now.
+    tsincelog = 0;
   }
 
-  // actual control input
-  control();
-  log();
+  if (readStringUntil(input, '\n')) {
+    sscanf(input.c_str(), "%d %d %d %d %d %d", &numseconds, &thrust, &vane, &linear, &thrust2, &vane2);
+    if (numseconds >= 10 || numseconds == 0) {
+      writeConstant(0, 't');
+      writeConstant(0, 'a');
+      serial.println("ESTOPPED");
+      while (true) {}
+    }
+    input = "";
+    tsincecmd = 0;
+  }
+
+  if (tsincecmd > numseconds * 1000) {
+    writeConstant(0, 't');
+    writeConstant(0, 'a');
+  } else {
+    if (!linear) {
+      writeConstant((float) thrust, 't');
+      writeConstant((float) vane, 'a');
+    } else {
+      writeLinear((float) tsincecmd / (float) (numseconds * 1000), (float) thrust, (float) thrust2, 't');
+      writeLinear((float) tsincecmd / (float) (numseconds * 1000), (float) vane, (float) vane2, 'a');
+    }
+  }
+
+  // serial.println(micros());
+
+  delayKeepIMU(constantDelay);
 }
 
-int numSegments = 4;
-float throttleVals[] = {20, 40, 60, 80};
-float vaneVals[]     = {-15, -15, -15, -15};
-float secondsPerSegment = 2;
-float delayBetween = 2;
-
-void control() {
-  if (segmentIdx >= numSegments) {
-    writeConstant(0, 't');
-    writeConstant(0, 'a');
-    delay(100 * 1000); // dont wanna spam output once test is done.
+bool readStringUntil(String& input, char until_c) {
+  while (Serial.available()) {
+    char c = Serial.read();
+    input += c;
+    if (c == until_c) {
+      return true;
+    }
   }
-
-  float secondsSince = millis() / 1000.0 - lastSegmentTime;
-  if (secondsSince > secondsPerSegment) {
-    delay(delayBetween * 1000.0);
-    lastSegmentTime = millis() / 1000.0;
-    segmentIdx++;
-    return;
-  }
-
-  writeConstant(throttleVals[segmentIdx], 't');
-  writeConstant(vaneVals[segmentIdx], 'a');
+  return false;
 }
 
 double sum = 0;

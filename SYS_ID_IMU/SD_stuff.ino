@@ -37,7 +37,8 @@ void logger::write(Data* data) {
 }
 
 int logger::open(const char* filename) {
-    file = SD.open(filename, FILE_WRITE | O_TRUNC);
+    file = SD.open(filename, FILE_WRITE_BEGIN);
+    file.truncate();
     if (!file) return FILE_OPEN_ERR;
     return 0;
 }
