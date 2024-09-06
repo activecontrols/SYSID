@@ -129,15 +129,23 @@ void setup() {
 
   serial.println("I am alive");
 
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  digitalWrite(LED_BUILTIN, HIGH);
+
   // lastSegmentTime = millis() / 1000.0;
 }
 
 
 void delayKeepIMU(int ms) {
-  static elapsedMillis t;
+  elapsedMillis t = 0;
   while (t < ms) {
+    digitalWrite(LED_BUILTIN, LOW);
+    // serial.println("BEFORE UPDATE");
     updateIMU();
+    // serial.println("AFTER UPDATE");
     delay(10);
+    digitalWrite(LED_BUILTIN, HIGH);
   }
 }
 
@@ -165,12 +173,13 @@ void loop() {
   }
 
   if (readStringUntil(input, '\n')) {
+    numseconds = thrust = vane = linear = thrust2 = vane2 = 0;
     sscanf(input.c_str(), "%d %d %d %d %d %d", &numseconds, &thrust, &vane, &linear, &thrust2, &vane2);
     if (numseconds >= 10 || numseconds == 0) {
       writeConstant(0, 't');
       writeConstant(0, 'a');
       logger::close();
-      serial.println("ESTOPPED");
+      serial.println("ESTOPPED, SD CLOSED");
       while (true) {}
     }
     input = "";
