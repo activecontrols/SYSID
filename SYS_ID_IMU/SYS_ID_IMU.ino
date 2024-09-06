@@ -10,7 +10,7 @@
 
 #define serial Serial
 
-int constantDelay = 1;
+int constantDelay = 20;
 
 Servo vane1;
 Servo vane2;
@@ -100,7 +100,7 @@ void setup() {
 
   initializeSD();
 
-  logger::open("spongebob.bin");
+  logger::open("spongebob2.bin");
 
   vane1.attach(vane1Pin);
   vane2.attach(vane2Pin);
@@ -137,7 +137,7 @@ void delayKeepIMU(int ms) {
   static elapsedMillis t;
   while (t < ms) {
     updateIMU();
-    delay(1);
+    delay(10);
   }
 }
 
@@ -169,6 +169,7 @@ void loop() {
     if (numseconds >= 10 || numseconds == 0) {
       writeConstant(0, 't');
       writeConstant(0, 'a');
+      logger::close();
       serial.println("ESTOPPED");
       while (true) {}
     }
@@ -211,7 +212,13 @@ int count = 0;
 void log() {
   serial.print(throttle_command);
   serial.print(",");
-  serial.print(vane_command);
+  serial.println(vane_command);
+
+  serial.print(accel.acceleration.x);
+  serial.print(",");
+  serial.print(accel.acceleration.y);
+  serial.print(",");
+  serial.println(accel.acceleration.z);
 
   float frequency = 0.0/0.0; // hacky way to get a nan
   if (FreqMeasure.available()) {
