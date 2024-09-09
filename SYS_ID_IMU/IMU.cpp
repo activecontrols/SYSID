@@ -169,14 +169,17 @@ int updateIMU() {
   // Gyroscope needs to be converted from Rad/s to Degree/s
   // the rest are not unit-important
 
-  gx = gyro.gyro.x; //* SENSORS_RADS_TO_DPS; //omega x
-  gy = gyro.gyro.y; //* SENSORS_RADS_TO_DPS; //omega y
-  gz = gyro.gyro.z; //* SENSORS_RADS_TO_DPS; //omega z
+  gx = gyro.gyro.x * SENSORS_RADS_TO_DPS; //omega x
+  gy = gyro.gyro.y * SENSORS_RADS_TO_DPS; //omega y
+  gz = gyro.gyro.z * SENSORS_RADS_TO_DPS; //omega z
 
   // Update the SensorFusion filter
   // filter.update(gx, gy, gz, 
   //               accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
   //               mag.magnetic.x, mag.magnetic.y, mag.magnetic.z);
+    filter.update(gx, gy, gz, 
+                accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
+                0,0,0);
   // Serial.println("RAW:  ");
   // Serial.print(lsm6ds.rawAccX);
   // Serial.print(",");
@@ -196,10 +199,10 @@ int updateIMU() {
   // Serial.print(",");
   // Serial.print(lis3mdl.z);
   // Serial.print(",");
-  filter.update(lsm6ds.rawGyroX, lsm6ds.rawGyroY, lsm6ds.rawGyroZ,
-                lsm6ds.rawAccX, lsm6ds.rawAccY, lsm6ds.rawAccZ,
-                lis3mdl.x, lis3mdl.y, lis3mdl.z
-  );
+  // filter.update(lsm6ds.rawGyroX, lsm6ds.rawGyroY, lsm6ds.rawGyroZ,
+  //               lsm6ds.rawAccX, lsm6ds.rawAccY, lsm6ds.rawAccZ,
+  //               lis3mdl.x, lis3mdl.y, lis3mdl.z
+  // );
   
   // print the heading, pitch and roll
   roll = filter.getRoll();

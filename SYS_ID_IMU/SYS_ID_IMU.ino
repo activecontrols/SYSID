@@ -83,9 +83,14 @@ void writeLinear(float t, float start, float end, char identifier) {
 String input;
 
 void setup() {
+  pinMode(LED_BUILTIN, OUTPUT);
+
+  digitalWrite(LED_BUILTIN, HIGH);
+
+  serial.begin(9600);
+
   FreqMeasure.begin();
   // serial.begin(57600);
-  serial.begin(9600);
 
   // while (!serial.available()) {}
 
@@ -129,24 +134,20 @@ void setup() {
 
   serial.println("I am alive");
 
-  pinMode(LED_BUILTIN, OUTPUT);
-
-  digitalWrite(LED_BUILTIN, HIGH);
-
   // lastSegmentTime = millis() / 1000.0;
 }
 
 
 void delayKeepIMU(int ms) {
-  elapsedMillis t = 0;
-  while (t < ms) {
-    digitalWrite(LED_BUILTIN, LOW);
+  // elapsedMillis t = 0;
+  // while (t < ms) {
+    // digitalWrite(LED_BUILTIN, LOW);
     // serial.println("BEFORE UPDATE");
     updateIMU();
     // serial.println("AFTER UPDATE");
-    delay(10);
-    digitalWrite(LED_BUILTIN, HIGH);
-  }
+    delay(1);
+    // digitalWrite(LED_BUILTIN, HIGH);
+  // }
 }
 
 #define LOG_INTERVAL 100 // todo: allow changing this value depending on whether we're actually in a segment or not.
@@ -154,6 +155,8 @@ void delayKeepIMU(int ms) {
 void loop() {
   static elapsedMillis tsincelog;
   static elapsedMillis tsincecmd;
+
+  // serial.println(micros()/100);
 
   static int thrust = 0;
   static int vane = 0;
@@ -223,11 +226,11 @@ void log() {
   serial.print(",");
   serial.println(vane_command);
 
-  serial.print(accel.acceleration.x);
+  serial.print(roll);
   serial.print(",");
-  serial.print(accel.acceleration.y);
+  serial.print(pitch);
   serial.print(",");
-  serial.println(accel.acceleration.z);
+  serial.println(yaw);
 
   float frequency = 0.0/0.0; // hacky way to get a nan
   if (FreqMeasure.available()) {
