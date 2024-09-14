@@ -20,6 +20,8 @@ namespace logger {
         float magx;
         float magy;
         float magz;
+        float encoderGamma;
+        float encoderBeta;
     } Data;
 
     extern int FILE_WRITE_ERR, FILE_OPEN_ERR;

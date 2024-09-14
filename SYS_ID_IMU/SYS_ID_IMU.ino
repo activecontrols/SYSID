@@ -7,8 +7,9 @@
 //#include <math.h>
 #include <Arduino.h>
 #include <FreqMeasure.h>
+#include "Encoder.h"
 
-#define serial Serial
+#define serial Serial1
 
 int constantDelay = 20;
 
@@ -27,6 +28,9 @@ float vane_min = -15;
 float vane_max = 15;
 float alpha1_0 = 140;  // Initial Vane setting in degrees
 float alpha2_0 = 140;
+
+float initialBeta = 90;
+float initialGamma = 100;
 
 const int low_endpoint = 1020;   // 0 throttle = 1000
 const int high_endpoint = 1980;  // 100 throttle = 2000
@@ -87,10 +91,11 @@ void setup() {
 
   digitalWrite(LED_BUILTIN, HIGH);
 
-  serial.begin(9600);
+  //serial.begin(9600);
+  serial.begin(57600);
 
   FreqMeasure.begin();
-  // serial.begin(57600);
+
 
   // while (!serial.available()) {}
 
@@ -107,6 +112,8 @@ void setup() {
 
   logger::open("spongebob2.bin");
 
+  encoder::encoderSetup();
+
   vane1.attach(vane1Pin);
   vane2.attach(vane2Pin);
   betaServo.attach(betaPin);
@@ -114,8 +121,8 @@ void setup() {
   EDF.attach(EDFPin);
   vane1.write(alpha1_0);
   vane2.write(alpha2_0);
-  betaServo.write(90);
-  gammaServo.write(100);
+  // betaServo.write(initialBeta);
+  // gammaServo.write(initialGamma);
 
   delay(15);
   EDF.writeMicroseconds(1020);
@@ -133,6 +140,7 @@ void setup() {
   input.reserve(80);
 
   serial.println("I am alive");
+  Serial.println("I am alive");
 
   // lastSegmentTime = millis() / 1000.0;
 }
@@ -176,6 +184,8 @@ void loop() {
   }
 
   if (readStringUntil(input, '\n')) {
+    betaServo.write(initialBeta);
+    gammaServo.write(initialGamma);
     numseconds = thrust = vane = linear = thrust2 = vane2 = 0;
     sscanf(input.c_str(), "%d %d %d %d %d %d", &numseconds, &thrust, &vane, &linear, &thrust2, &vane2);
     if (numseconds >= 10 || numseconds == 0) {
@@ -201,6 +211,7 @@ void loop() {
       writeLinear((float) tsincecmd / (float) (numseconds * 1000), (float) vane, (float) vane2, 'a');
     }
   }
+  
 
   // serial.println(micros());
 
@@ -208,8 +219,8 @@ void loop() {
 }
 
 bool readStringUntil(String& input, char until_c) {
-  while (Serial.available()) {
-    char c = Serial.read();
+  while (serial.available()) {
+    char c = serial.read();
     input += c;
     if (c == until_c) {
       return true;
@@ -260,7 +271,9 @@ void log() {
     gz,
     mag.magnetic.x,
     mag.magnetic.y,
-    mag.magnetic.z
+    mag.magnetic.z,
+    encoder::magEncoder1.readAngle(),
+    encoder::magEncoder2.readAngle()
   };
 
   logger::write(&data);
