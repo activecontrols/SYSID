@@ -57,9 +57,9 @@ int loadPresetCalibration() {
 
   //Gyro zero rate offset
   // in Radians/s
-  cal.gyro_zerorate[0] = 0.05;
-  cal.gyro_zerorate[1] = -0.01;
-  cal.gyro_zerorate[2] = -0.01;
+  cal.gyro_zerorate[0] = 0.0056;
+  cal.gyro_zerorate[1] = -0.00032197;
+  cal.gyro_zerorate[2] = 0.000635;
 #endif
 
 #if IMU_NUMBER == 2 /* NOT CALIBRATED YET */
