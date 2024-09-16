@@ -24,8 +24,8 @@ int betaPin = 28;
 int gammaPin = 29;
 int EDFPin = 8;
 
-float vane_min = -13;
-float vane_max = 13;
+float vane_min = -15;
+float vane_max = 15;
 float alpha1_0 = 140;  // Initial Vane setting in degrees
 float alpha2_0 = 140;
 
@@ -119,6 +119,7 @@ void setup() {
 
   betaServo.attach(betaPin);
   gammaServo.attach(gammaPin);
+  //writing needs to happen write after attaching or servos max out
   betaServo.write(initialBeta);
   gammaServo.write(initialGamma);
 
