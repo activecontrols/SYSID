@@ -20,17 +20,17 @@ Servo gammaServo;
 Servo EDF;
 int vane1Pin = 33;
 int vane2Pin = 36;
-int betaPin = 39;
+int betaPin = 28;
 int gammaPin = 29;
 int EDFPin = 8;
 
-float vane_min = -15;
-float vane_max = 15;
+float vane_min = -13;
+float vane_max = 13;
 float alpha1_0 = 140;  // Initial Vane setting in degrees
 float alpha2_0 = 140;
 
-float initialBeta = 90;
-float initialGamma = 100;
+float initialBeta = 100;
+float initialGamma = 90;
 
 const int low_endpoint = 1020;   // 0 throttle = 1000
 const int high_endpoint = 1980;  // 100 throttle = 2000
@@ -116,13 +116,16 @@ void setup() {
 
   vane1.attach(vane1Pin);
   vane2.attach(vane2Pin);
+
   betaServo.attach(betaPin);
   gammaServo.attach(gammaPin);
+  betaServo.write(initialBeta);
+  gammaServo.write(initialGamma);
+
   EDF.attach(EDFPin);
   vane1.write(alpha1_0);
   vane2.write(alpha2_0);
-  // betaServo.write(initialBeta);
-  // gammaServo.write(initialGamma);
+  
 
   delay(15);
   EDF.writeMicroseconds(1020);
@@ -184,8 +187,7 @@ void loop() {
   }
 
   if (readStringUntil(input, '\n')) {
-    betaServo.write(initialBeta);
-    gammaServo.write(initialGamma);
+    
     numseconds = thrust = vane = linear = thrust2 = vane2 = 0;
     sscanf(input.c_str(), "%d %d %d %d %d %d", &numseconds, &thrust, &vane, &linear, &thrust2, &vane2);
     if (numseconds >= 10 || numseconds == 0) {
