@@ -69,6 +69,7 @@ extern int initializeIMU();
 extern int updateIMU();
 extern int loadPresetCalibration();
 extern float* getValues();
+Eigen::Vector3d quatToEuler(Eigen::Quaterniond q);
 
 
 #endif

@@ -23,6 +23,8 @@ float roll, pitch, yaw = 0;
 float gx, gy, gz = 0; //degrees per second on gyro
 float qw, qx, qy, qz = 0; //quaternarion
 sensors_event_t accel, gyro, mag;
+elapsedMillis filterMillis = 0;
+int lastFilterMillis = 0;
 
 /*
  * You must free the pointer and set it to NULL after using the pointer!
@@ -172,9 +174,9 @@ int updateIMU() {
   // Gyroscope needs to be converted from Rad/s to Degree/s
   // the rest are not unit-important
 
-  gx = gyro.gyro.x * SENSORS_RADS_TO_DPS; //omega x
-  gy = gyro.gyro.y * SENSORS_RADS_TO_DPS; //omega y
-  gz = gyro.gyro.z * SENSORS_RADS_TO_DPS; //omega z
+  gx = gyro.gyro.x; //omega x
+  gy = gyro.gyro.y; //omega y
+  gz = gyro.gyro.z; //omega z
 
   // Update the SensorFusion filter
   // filter.update(gx, gy, gz, 
@@ -185,6 +187,7 @@ int updateIMU() {
     //             0,0,0);
   updateKalman(Eigen::Vector3d(gx, gy, gz), Eigen::Vector3d(-accel.acceleration.x/9.8, -accel.acceleration.y/9.8, -accel.acceleration.z/9.8), 
                 Eigen::Vector3d(0.0, 0.0, 0.0), (double)(filterMillis - lastFilterMillis)/1000.0);
+  lastFilterMillis = filterMillis;
   // Serial.println("RAW:  ");
   // Serial.print(lsm6ds.rawAccX);
   // Serial.print(",");
@@ -211,16 +214,25 @@ int updateIMU() {
   
   // print the heading, pitch and roll
 
-  roll = filter.getRoll();
-  pitch = filter.getPitch();
-  yaw = filter.getYaw();
+  //roll = filter.getRoll();
+  //pitch = filter.getPitch();
+  //yaw = filter.getYaw();
 
   // gx = lsm6ds.rawGyroX;
   // gy = lsm6ds.rawGyroY;
   // gz = lsm6ds.rawGyroZ;
 
   //float qw, qx, qy, qz;
-  filter.getQuaternion(&qw, &qx, &qy, &qz);
+  qw = estimate.w();
+  qx = estimate.x();
+  qy = estimate.y();
+  qz = estimate.z();
+
+  Eigen::Vector3d v = quatToEuler(estimate);
+  roll = v.x();
+  pitch = v.y();
+  yaw = v.z();
+  //filter.getQuaternion(&qw, &qx, &qy, &qz);
 
 
   filter.getLinearAcceleration(&linearAccelX, &linearAccelY, &linearAccelZ); //"a" -  linear acceleration
@@ -273,23 +285,11 @@ int updateIMU() {
 
 }
 
-void quatToEuler(quaternion_t q, float32_t* outEuler)
-{
-
-	float32_t roll = atan2(2*(q.w*q.vec[0] + q.vec[1]*q.vec[2]), 1 - 2*(q.vec[0]*q.vec[0] + q.vec[1]*q.vec[1]));
-	outEuler[0] = roll;
-
-	float32_t pitch = asin(2*(q.w*q.vec[1] - q.vec[2]*q.vec[0]));
-	//float32_t pitch = -(M_PI/2.0) + 2.0 * atan2(sqrt(1 + 2.0 * (q.w * q.vec[1] - q.vec[0] * q.vec[2])), sqrt(1 - 2.0 * (q.w * q.vec[1]- q.vec[0] * q.vec[2])));
-	outEuler[1] = pitch;
-
-	float32_t yaw = atan2(2*(q.w*q.vec[2] + q.vec[0]*q.vec[1]), 1 - 2*(q.vec[1]*q.vec[1] + q.vec[2]*q.vec[2]));
-	outEuler[2] = yaw;
-}
-
 Eigen::Vector3d quatToEuler(Eigen::Quaterniond q){
   Eigen::Vector3d v(0.0, 0.0, 0.0);
-  Eigen::Vector3d v_q = q.vec();
-  v(0) = math.atan2(2*(q.w()*v_q + q.vec[1]*q.vec[2]), 1 - 2*(q.vec[0]*q.vec[0] + q.vec[1]*q.vec[1]))
+  v.x() = atan2(2*(q.w()*q.x() + q.y()*q.z()), 1 - 2*(q.x()*q.x() + q.y()*q.y()));
+  v.y() = asin(2*(q.w()*q.y() - q.z()*q.x()));
+  v.z() = atan2(2*(q.w()*q.z() + q.x()*q.y()), 1 - 2*(q.y()*q.y() + q.z()*q.z()));
+  return v;
 }
 
