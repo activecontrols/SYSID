@@ -3,6 +3,8 @@
 
 #include "IMU.h"
 #include "LSM6DS_LIS3MDL.h"
+#include "MEKF.h"
+#include "math.h"
 
 /*
 IMU.cpp 
@@ -142,6 +144,7 @@ int initializeIMU() {
 #endif
 
   setup_sensors();
+  initKalman(Eigen::Quaterniond::Identity(), 0.0, 0.0000194955, 0.000000000000000025032, 0.0000000024616355, 0.0, 0.0000000024616355, 0.0, 0.0003, 0.00003);
   filter.begin(FILTER_UPDATE_RATE_HZ);
   
   Wire.setClock(400000); // 400KHz
@@ -177,9 +180,11 @@ int updateIMU() {
   // filter.update(gx, gy, gz, 
   //               accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
   //               mag.magnetic.x, mag.magnetic.y, mag.magnetic.z);
-    filter.update(gx, gy, gz, 
-                accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
-                0,0,0);
+    // filter.update(gx, gy, gz, 
+    //             accel.acceleration.x, accel.acceleration.y, accel.acceleration.z, 
+    //             0,0,0);
+  updateKalman(Eigen::Vector3d(gx, gy, gz), Eigen::Vector3d(-accel.acceleration.x/9.8, -accel.acceleration.y/9.8, -accel.acceleration.z/9.8), 
+                Eigen::Vector3d(0.0, 0.0, 0.0), (double)(filterMillis - lastFilterMillis)/1000.0);
   // Serial.println("RAW:  ");
   // Serial.print(lsm6ds.rawAccX);
   // Serial.print(",");
@@ -205,6 +210,7 @@ int updateIMU() {
   // );
   
   // print the heading, pitch and roll
+
   roll = filter.getRoll();
   pitch = filter.getPitch();
   yaw = filter.getYaw();
@@ -265,5 +271,25 @@ int updateIMU() {
 
   return NO_ERROR_CODE;
 
+}
+
+void quatToEuler(quaternion_t q, float32_t* outEuler)
+{
+
+	float32_t roll = atan2(2*(q.w*q.vec[0] + q.vec[1]*q.vec[2]), 1 - 2*(q.vec[0]*q.vec[0] + q.vec[1]*q.vec[1]));
+	outEuler[0] = roll;
+
+	float32_t pitch = asin(2*(q.w*q.vec[1] - q.vec[2]*q.vec[0]));
+	//float32_t pitch = -(M_PI/2.0) + 2.0 * atan2(sqrt(1 + 2.0 * (q.w * q.vec[1] - q.vec[0] * q.vec[2])), sqrt(1 - 2.0 * (q.w * q.vec[1]- q.vec[0] * q.vec[2])));
+	outEuler[1] = pitch;
+
+	float32_t yaw = atan2(2*(q.w*q.vec[2] + q.vec[0]*q.vec[1]), 1 - 2*(q.vec[1]*q.vec[1] + q.vec[2]*q.vec[2]));
+	outEuler[2] = yaw;
+}
+
+Eigen::Vector3d quatToEuler(Eigen::Quaterniond q){
+  Eigen::Vector3d v(0.0, 0.0, 0.0);
+  Eigen::Vector3d v_q = q.vec();
+  v(0) = math.atan2(2*(q.w()*v_q + q.vec[1]*q.vec[2]), 1 - 2*(q.vec[0]*q.vec[0] + q.vec[1]*q.vec[1]))
 }
 
