@@ -229,9 +229,9 @@ int updateIMU() {
   qz = estimate.z();
 
   Eigen::Vector3d v = quatToEuler(estimate);
-  roll = v.x();
-  pitch = v.y();
-  yaw = v.z();
+  roll = v.x() * SENSORS_RADS_TO_DPS;
+  pitch = v.y() * SENSORS_RADS_TO_DPS;
+  yaw = v.z() * SENSORS_RADS_TO_DPS;
   //filter.getQuaternion(&qw, &qx, &qy, &qz);
 
 

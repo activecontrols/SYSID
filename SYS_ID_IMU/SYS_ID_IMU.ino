@@ -29,8 +29,8 @@ float vane_max = 15;
 float alpha1_0 = 140;  // Initial Vane setting in degrees
 float alpha2_0 = 140;
 
-float initialBeta = 100;
-float initialGamma = 90;
+float initialBeta = 90; //outer ring
+float initialGamma = 85; //inner ring
 
 const int low_endpoint = 1020;   // 0 throttle = 1000
 const int high_endpoint = 1980;  // 100 throttle = 2000
@@ -87,6 +87,10 @@ void writeLinear(float t, float start, float end, char identifier) {
 String input;
 
 void setup() {
+
+  serial.println("I am alive1");
+  Serial.println("I am alive1");
+
   pinMode(LED_BUILTIN, OUTPUT);
 
   digitalWrite(LED_BUILTIN, HIGH);
@@ -245,6 +249,16 @@ void log() {
   serial.print(pitch);
   serial.print(",");
   serial.println(yaw);
+
+  Serial.print(throttle_command);
+  Serial.print(",");
+  Serial.println(vane_command);
+
+  Serial.print(roll);
+  Serial.print(",");
+  Serial.print(pitch);
+  Serial.print(",");
+  Serial.println(yaw);
 
   float frequency = 0.0/0.0; // hacky way to get a nan
   if (FreqMeasure.available()) {
