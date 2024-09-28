@@ -11,7 +11,7 @@
 
 #define serial Serial1
 
-int constantDelay = 20;
+int constantDelay = 1;
 
 Servo vane1;
 Servo vane2;
@@ -155,18 +155,18 @@ void setup() {
 
 
 void delayKeepIMU(int ms) {
-  // elapsedMillis t = 0;
-  // while (t < ms) {
-    // digitalWrite(LED_BUILTIN, LOW);
-    // serial.println("BEFORE UPDATE");
+  elapsedMillis t = 0;
+  while (t < ms) {
+    //digitalWrite(LED_BUILTIN, LOW);
+    //serial.println("BEFORE UPDATE");
     updateIMU();
-    // serial.println("AFTER UPDATE");
+    //serial.println("AFTER UPDATE");
     delay(1);
-    // digitalWrite(LED_BUILTIN, HIGH);
-  // }
+    //digitalWrite(LED_BUILTIN, HIGH);
+  }
 }
 
-#define LOG_INTERVAL 100 // todo: allow changing this value depending on whether we're actually in a segment or not.
+#define LOG_INTERVAL 10 // todo: allow changing this value depending on whether we're actually in a segment or not.
 
 void loop() {
   static elapsedMillis tsincelog;
