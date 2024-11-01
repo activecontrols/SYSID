@@ -11,6 +11,10 @@ accelX = rawData(:,9); % accelerometer data (m/s^2)
 accelY = rawData(:,10);
 accelZ = rawData(:,11);
 
+aXbias = mean(accelX); % accelerometer data (m/s^2)
+aYbias = mean(accelY);
+aZbias = mean(accelZ);
+
 gx = rawData(:,12); % gyrometer data (rad/s)
 gy = rawData(:,13);
 gz = rawData(:,14);
@@ -18,6 +22,10 @@ gz = rawData(:,14);
 magX = rawData(:,15); % magnetometer data (microtesla)
 magY = rawData(:,16);
 magZ = rawData(:,17);
+
+axMean = mean(accelX);
+ayMean = mean(accelY);
+azMean = mean(accelZ);
 
 gxMean = mean(gx);
 gyMean = mean(gy);
@@ -63,43 +71,60 @@ xlabel("rad/s")
 ylabel("freq")
 
 %% Plots using simulink
-figure
-plot(time,gz,out.tout, out.gz)
-legend("real data","simulink model")
-xlabel("time (s)")
-ylabel("rotation (rad/s)")
 
-figure
-[f,amp] = myfft(gz-gzMean, 16);
-hold on
-[fsim,ampsim] = myfft(out.gz-gzMean, 16);
+function compareData(actual, model, actualTime, modelTime)
 
-figure
-[tau,AVAR] = allan(time, gz-gzMean);
-hold on
-[tausim,AVARsim] = allan(out.tout, out.gz-gzMean);
-title("Allan Variance Plot")
-legend("real data","simulink model")
-xlabel("tau")
-ylabel("Allan Variance")
+    figure
+    plot(actualTime, actual, modelTime, model)
+    legend("real data","simulink model")
+    xlabel("time (s)")
+    ylabel("rotation (rad/s)")
+    
+    actualMean = mean(actual);
 
-figure
-histogram(gz,"BinWidth",.0035)
-hold on
-histogram(out.gz,"BinWidth",.0035)
-title("Histogram of model vs raw")
-legend("real data","simulink model")
-xlabel("rad/s")
-ylabel("freq")
+    figure
+    [f,amp] = myfft(actual-actualMean, 16);
+    hold on
+    [fsim,ampsim] = myfft(model-actualMean, 16);
+    
+    figure
+    [tau,AVAR] = allan(actualTime, actual-actualMean);
+    hold on
+    [tausim,AVARsim] = allan(modelTime, model-actualMean);
+    title("Allan Variance Plot")
+    legend("real data","simulink model")
+    xlabel("tau")
+    ylabel("Allan Variance")
+    
+    figure
+    histogram(actual, "BinWidth",.0035)
+    hold on
+    histogram(model,"BinWidth",.0035)
+    xlim([-0.1, 0.1]);
+    title("Histogram of model vs raw")
+    legend("real data","simulink model")
+    xlabel("rad/s")
+    ylabel("freq")
+
+    calcRateNoiseDensity = AVAR(16);
+    calcRateNoiseDensitysim = AVARsim(16);
+
+    fprintf("tau check: %f, %f, calculated RND of sensor: %f, calcRND of sim: %f\n", tau(16),tausim(16), AVAR(16), AVARsim(16))
+    fprintf("mean of sensor: %f, mean of sim: %f\n", actualMean, mean(model))
+    fprintf("std of sensor: %f, std of sim: %f\n", std(actual), std(model))
+    fprintf("ideal mean is 0. ideal RND is .0038\n")
+end
+
+compareData(accelZ, out.az, time, out.tout);
 
 % tau(16) at this point, tau is closest to 1
-calcRateNoiseDensity = AVAR(16);
-calcRateNoiseDensitysim = AVARsim(16);
+%calcRateNoiseDensity = AVAR(16);
+%calcRateNoiseDensitysim = AVARsim(16);
 % ans = .0044. the data sheet says it should be .0038
-fprintf("tau check: %f, %f, calculated RND of sensor: %f, calcRND of sim: %f\n", tau(16),tausim(16), AVAR(16), AVARsim(16))
-fprintf("mean of sensor: %f, mean of sim: %f\n", gzMean, mean(out.gz))
-fprintf("std of sensor: %f, std of sim: %f\n", gzStd, std(out.gz))
-fprintf("ideal mean is 0. ideal RND is .0038\n")
+%fprintf("tau check: %f, %f, calculated RND of sensor: %f, calcRND of sim: %f\n", tau(16),tausim(16), AVAR(16), AVARsim(16))
+%fprintf("mean of sensor: %f, mean of sim: %f\n", gzMean, mean(out.gy))
+%fprintf("std of sensor: %f, std of sim: %f\n", gzStd, std(out.gy))
+%fprintf("ideal mean is 0. ideal RND is .0038\n")
 
 %% what I did to make the model
 % 1. input the static bias into model
